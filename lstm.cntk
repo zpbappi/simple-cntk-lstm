@@ -1,0 +1,98 @@
+precision = float
+deviceId = auto
+traceLevel = 0
+
+modelPath = "./models/lstm"
+
+command = Train : Validate : Predict
+
+Train = [
+    action = "train"
+    
+    SGD = [
+        maxEpochs = 20
+        learningRatesPerMB = 0.01
+        minibatchSize = 10
+        autoAdjust = [
+            autoAdjustLR = AdjustAfterEpoch
+        ]
+    ]
+    
+    BrainScriptNetworkBuilder = [
+        inDim = 1
+        outDim = 1
+        hidDim = 10
+        
+        features = Input(inDim)
+        labels = Input(outDim)
+        
+        lstmp = BS.RNNs.RecurrentLSTMP(hidDim, cellDim=hidDim, features, inputDim=inDim)
+        W = Parameter(outDim, hidDim)
+        B = Parameter(outDim, 1, init="fixedValue", value=0)
+        
+        h = W * lstmp.h + B
+        
+        err = SquareError(h, labels)
+        
+        criterionNodes = (err)
+        evaluationNode = (err)
+        outputNodes = (h)
+    ]
+    
+    reader = [
+        readerType = "CNTKTextFormatReader"
+        file = "./train.txt"
+        input = [
+            features = [
+                dim = 1
+                format = "dense"
+                alias = "t"
+            ]
+            labels = [
+                dim = 1
+                format = "dense"
+                alias = "f"
+            ]
+        ]
+    ]
+]
+
+Validate = [
+    action = "test"
+    
+    reader = [
+        readerType = "CNTKTextFormatReader"
+        file = "./validate.txt"
+        input = [
+            features = [
+                dim = 1
+                format = "dense"
+                alias = "t"
+            ]
+            labels = [
+                dim = 1
+                format = "dense"
+                alias = "f"
+            ]
+        ]
+    ]
+]
+
+Predict = [
+    action = "write"
+    
+    outputPath = "./predictions.txt"
+    outputNodeNames = "h"
+    
+    reader = [
+        readerType = "CNTKTextFormatReader"
+        file = "./test.txt"
+        input = [
+            features = [
+                dim = 1
+                format = "dense"
+                alias = "t"
+            ]
+        ]
+    ]
+]
